@@ -22,6 +22,10 @@
   - 在配置 `OPENAI_API_KEY` 或 `QWEN_API_KEY` 且用户启用时，调用 OpenAI 兼容 API 对方案文案进行增强。
   - 输出更人性化的概览、阶段计划，以及补充的 GitHub 协作动作。
 
+- **core/ai_planner.py（可选大模型增强层）**
+  - 在配置 `OPENAI_API_KEY` 且用户启用时，调用 OpenAI API 对方案文案进行增强。
+  - 输出更人性化的概览、阶段计划，以及补充的 GitHub 协作动作。
+
 - **core/diagram.py（流程图层）**
   - 生成 Mermaid flowchart 源码，表达需求到交付的主流程。
 
