@@ -8,13 +8,14 @@ from core.schemas import PlanSection, ResearchSpec, ScaffoldEntry, ScaffoldSugge
 def build_overview(spec: ResearchSpec) -> str:
     """Generate concise overview from structured spec."""
     training_note = "包含模型训练闭环" if spec.needs_training else "以规则/算法流程为主"
+    deliverables_text = "、".join(spec.deliverables)
     return (
         f"### {spec.project_name}\n"
         f"该工具属于 **{spec.task_type}**，目标是解决：{spec.problem_statement}\n\n"
         f"- 输入数据：{spec.input_format}\n"
         f"- 输出目标：{spec.output_format}\n"
         f"- 部署形态：{spec.deployment_form}\n"
-        f"- 实施特点：{training_note}，并产出 {"、".join(spec.deliverables)}。"
+        f"- 实施特点：{training_note}，并产出 {deliverables_text}。"
     )
 
 
