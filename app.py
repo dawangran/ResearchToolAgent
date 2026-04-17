@@ -58,6 +58,21 @@ def _render_input_form() -> dict:
             index=0,
             help="仅支持 OpenAI/Qwen；自动模式优先尝试 OPENAI_API_KEY，其次 QWEN_API_KEY。",
         )
+        ai_model = st.text_input(
+            "模型名称（可选）",
+            placeholder="例如：gpt-4.1-mini 或 qwen-plus",
+            help="不填则使用环境变量或系统默认模型。",
+        )
+        ai_api_key = st.text_input(
+            "API Key（可选）",
+            type="password",
+            help="可直接在界面填写；留空则读取环境变量。",
+        )
+        ai_base_url = st.text_input(
+            "Base URL（可选）",
+            placeholder="例如：https://dashscope.aliyuncs.com/compatible-mode/v1",
+            help="通常仅在兼容模式或代理场景需要配置。",
+        )
         submitted = st.form_submit_button("生成（仅大模型）方案包", type="primary")
 
     return {
@@ -70,6 +85,9 @@ def _render_input_form() -> dict:
         "needs_training": needs_training,
         "github_sync": github_sync,
         "ai_provider": ai_provider,
+        "ai_model": ai_model,
+        "ai_api_key": ai_api_key,
+        "ai_base_url": ai_base_url,
     }
 
 
@@ -106,12 +124,19 @@ def main() -> None:
     innovation_points = generate_innovation_points(spec)
     github_actions_from_ai: list[str] = []
 
-    ready, ai_message, chosen_provider = is_ai_ready(inputs["ai_provider"])
+    ai_overrides = {
+        "model": inputs["ai_model"].strip(),
+        "api_key": inputs["ai_api_key"].strip(),
+        "base_url": inputs["ai_base_url"].strip(),
+    }
+    ai_overrides = {key: value for key, value in ai_overrides.items() if value}
+
+    ready, ai_message, chosen_provider = is_ai_ready(inputs["ai_provider"], overrides=ai_overrides)
     if not ready:
         st.error(ai_message)
         st.stop()
 
-    ai_payload = enhance_plan_with_ai(spec, design_plan, chosen_provider)
+    ai_payload = enhance_plan_with_ai(spec, design_plan, chosen_provider, overrides=ai_overrides)
     if not ai_payload:
         st.error("大模型返回结果不可解析，请重试或更换模型。")
         st.stop()

@@ -9,6 +9,9 @@ import os
 from core.schemas import PlanSection, ResearchSpec
 
 
+ProviderOverrides = dict[str, str]
+
+
 def _resolve_provider(provider: str) -> str:
     normalized = provider.lower().strip()
     if normalized == "自动":
@@ -20,29 +23,30 @@ def _resolve_provider(provider: str) -> str:
     return normalized
 
 
-def _provider_config(provider: str) -> tuple[str, str | None, str]:
+def _provider_config(provider: str, overrides: ProviderOverrides | None = None) -> tuple[str, str | None, str]:
+    runtime = overrides or {}
     normalized = _resolve_provider(provider)
     if normalized == "qwen":
         return (
-            os.getenv("QWEN_API_KEY", ""),
-            os.getenv("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-            os.getenv("QWEN_MODEL", "qwen-plus"),
+            runtime.get("api_key") or os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY", ""),
+            runtime.get("base_url") or os.getenv("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            runtime.get("model") or os.getenv("QWEN_MODEL", "qwen-plus"),
         )
     return (
-        os.getenv("OPENAI_API_KEY", ""),
-        os.getenv("OPENAI_BASE_URL"),
-        os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+        runtime.get("api_key") or os.getenv("OPENAI_API_KEY", ""),
+        runtime.get("base_url") or os.getenv("OPENAI_BASE_URL"),
+        runtime.get("model") or os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
     )
 
 
-def is_ai_ready(provider: str) -> tuple[bool, str, str]:
+def is_ai_ready(provider: str, overrides: ProviderOverrides | None = None) -> tuple[bool, str, str]:
     """Check whether selected provider, SDK and API key are available."""
     chosen_provider = _resolve_provider(provider)
-    api_key, _, _ = _provider_config(chosen_provider)
+    api_key, _, _ = _provider_config(chosen_provider, overrides=overrides)
     has_key = bool(api_key)
     if not has_key:
         if chosen_provider == "qwen":
-            return False, "未检测到 QWEN_API_KEY（请先配置后再生成）。", chosen_provider
+            return False, "未检测到 QWEN_API_KEY / DASHSCOPE_API_KEY（请先配置后再生成）。", chosen_provider
         return False, "未检测到 OPENAI_API_KEY（请先配置后再生成）。", chosen_provider
 
     try:
@@ -70,41 +74,60 @@ def _build_prompt(spec: ResearchSpec, sections: list[PlanSection]) -> str:
     )
 
 
-def enhance_plan_with_ai(spec: ResearchSpec, sections: list[PlanSection], provider: str) -> dict | None:
+def enhance_plan_with_ai(
+    spec: ResearchSpec,
+    sections: list[PlanSection],
+    provider: str,
+    overrides: ProviderOverrides | None = None,
+) -> dict | None:
     """Return AI-enhanced plan payload, or None when API output is invalid."""
-    ready, _, chosen_provider = is_ai_ready(provider)
+    ready, _, chosen_provider = is_ai_ready(provider, overrides=overrides)
     if not ready:
         return None
 
-    api_key, base_url, model = _provider_config(chosen_provider)
+    def _request_with_provider(target_provider: str) -> dict | None:
+        api_key, base_url, model = _provider_config(target_provider, overrides=overrides)
+        openai_module = importlib.import_module("openai")
+        client = openai_module.OpenAI(api_key=api_key, base_url=base_url)
+
+        response = client.responses.create(
+            model=model,
+            input=[
+                {
+                    "role": "system",
+                    "content": "你是严谨且务实的 AI 科研研发顾问。",
+                },
+                {
+                    "role": "user",
+                    "content": _build_prompt(spec, sections),
+                },
+            ],
+        )
+
+        content = response.output_text.strip()
+        if not content:
+            return None
+
+        try:
+            payload = json.loads(content)
+        except json.JSONDecodeError:
+            return None
+
+        if not isinstance(payload, dict):
+            return None
+        if "overview_md" not in payload or "sections" not in payload:
+            return None
+        return payload
+
     openai_module = importlib.import_module("openai")
-    client = openai_module.OpenAI(api_key=api_key, base_url=base_url)
-
-    response = client.responses.create(
-        model=model,
-        input=[
-            {
-                "role": "system",
-                "content": "你是严谨且务实的 AI 科研研发顾问。",
-            },
-            {
-                "role": "user",
-                "content": _build_prompt(spec, sections),
-            },
-        ],
-    )
-
-    content = response.output_text.strip()
-    if not content:
-        return None
+    auth_error_type = getattr(openai_module, "AuthenticationError", None)
+    if chosen_provider != "openai":
+        return _request_with_provider(chosen_provider)
 
     try:
-        payload = json.loads(content)
-    except json.JSONDecodeError:
-        return None
-
-    if not isinstance(payload, dict):
-        return None
-    if "overview_md" not in payload or "sections" not in payload:
-        return None
-    return payload
+        return _request_with_provider("openai")
+    except Exception as exc:  # noqa: BLE001
+        has_qwen_key = bool(os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY"))
+        if auth_error_type and isinstance(exc, auth_error_type) and has_qwen_key:
+            return _request_with_provider("qwen")
+        raise

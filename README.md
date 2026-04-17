@@ -40,12 +40,16 @@ export OPENAI_MODEL="gpt-4.1-mini"  # 可选，不设置则使用默认值
 
 ```bash
 export QWEN_API_KEY="your_qwen_api_key"
+# 或者使用 DashScope 常见变量名（等价）：
+# export DASHSCOPE_API_KEY="your_qwen_api_key"
 export QWEN_MODEL="qwen-plus"  # 可选
 export QWEN_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"  # 可选
 ```
 
 3. 在页面选择提供方（自动/OpenAI/Qwen）并生成方案。  
+   - 可直接在界面填写模型名、API Key、Base URL（优先级高于环境变量）。
    - 自动模式：优先使用 `OPENAI_API_KEY`，若不存在则尝试 `QWEN_API_KEY`。
+   - 若自动模式下 OpenAI Key 鉴权失败且已配置 Qwen Key，会自动回退到 Qwen 再尝试一次。
 4. 若勾选 GitHub 同步，会额外生成 `.github/workflows/ci.yml`、Issue/PR 模板建议，支持仓库协作开发。
 
 ## 项目结构
