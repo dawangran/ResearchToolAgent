@@ -5,12 +5,15 @@ from __future__ import annotations
 from core.schemas import ResearchSpec
 
 TASK_KEYWORDS = {
+    "数据清洗与质控工具": ["清洗", "质控", "去噪", "缺失值", "异常值", "qc", "预处理"],
     "信号处理工具": ["signal", "信号", "chunk", "denoise", "normalize", "滤波"],
     "序列分析工具": ["序列", "fasta", "fastq", "bam", "isoform", "variant", "比对"],
+    "统计建模与推断工具": ["统计", "回归", "检验", "bayes", "bootstrap", "置信区间"],
     "深度学习模型工具": ["训练", "模型", "分类", "预测", "deep learning", "神经网络"],
-    "可视化工具": ["可视化", "图表", "dashboard", "plot", "报告"],
-    "流程/CLI 工具": ["pipeline", "workflow", "cli", "命令行", "流程"],
+    "可视化与报告工具": ["可视化", "图表", "dashboard", "plot", "报告"],
+    "流程编排/CLI 工具": ["pipeline", "workflow", "cli", "命令行", "流程", "编排"],
     "网页应用工具": ["网页", "web", "streamlit", "flask", "前端"],
+    "多智能体/自动化科研助理": ["agent", "智能体", "自动化", "assistant", "copilot", "工作流助手"],
 }
 
 INPUT_HINTS = ["npy", "csv", "jsonl", "bam", "fastq", "fasta", "txt", "parquet"]
@@ -23,12 +26,18 @@ def _contains_any(text: str, keywords: list[str]) -> bool:
 
 def infer_task_type(user_text: str, selected_task: str | None) -> str:
     """Infer task category from explicit selection or keyword matching."""
-    if selected_task:
+    if selected_task and selected_task != "自动识别（推荐）":
         return selected_task
     lowered = user_text.lower()
+    best_task = None
+    best_score = 0
     for task, keywords in TASK_KEYWORDS.items():
-        if _contains_any(lowered, [word.lower() for word in keywords]):
-            return task
+        score = sum(1 for word in keywords if word.lower() in lowered)
+        if score > best_score:
+            best_score = score
+            best_task = task
+    if best_task:
+        return best_task
     return "通用科研分析工具"
 
 
@@ -68,7 +77,7 @@ def infer_deployment_form(user_text: str, task_type: str) -> str:
         return "web app"
     if _contains_any(lowered, ["cli", "命令行", "pipeline", "workflow"]):
         return "cli"
-    if task_type in {"信号处理工具", "序列分析工具", "流程/CLI 工具"}:
+    if task_type in {"信号处理工具", "序列分析工具", "流程编排/CLI 工具", "数据清洗与质控工具"}:
         return "python package + scripts"
     return "python library"
 
@@ -76,12 +85,12 @@ def infer_deployment_form(user_text: str, task_type: str) -> str:
 def build_deliverables(task_type: str, needs_training: bool, wants_github: bool) -> list[str]:
     """Build default deliverables list according to parsed intent."""
     deliverables = ["结构化需求说明", "可执行设计方案", "推荐项目骨架", "Mermaid 逻辑图"]
-    if task_type in {"可视化工具", "网页应用工具"}:
+    if task_type in {"可视化与报告工具", "网页应用工具"}:
         deliverables.append("可视化界面原型说明")
     if needs_training:
         deliverables.extend(["训练与评估流程定义", "实验配置建议"])
     if wants_github:
-        deliverables.append("GitHub 同步与协作建议")
+        deliverables.extend(["GitHub 仓库初始化命令", "分支与协作规范建议", "CI 校验建议"])
     return deliverables
 
 
