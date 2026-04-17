@@ -8,7 +8,7 @@ from core.ai_planner import enhance_plan_with_ai, is_ai_ready
 from core.diagram import build_diagram_explanation, generate_mermaid_flow
 from core.innovation import generate_innovation_points
 from core.parser import parse_user_request
-from core.planner import build_design_plan, build_overview, build_project_scaffold
+from core.planner import build_bootstrap_files, build_design_plan, build_overview, build_project_scaffold
 
 
 EXAMPLE_PROMPT = (
@@ -52,8 +52,13 @@ def _render_input_form() -> dict:
         output_goal = st.text_input("输出目标（可选）", placeholder="例如：分类结果 + 报告 + 图表")
         needs_training = st.checkbox("是否需要训练模型（可选）", value=False)
         github_sync = st.checkbox("是否需要 GitHub 同步（可选）", value=True)
-        use_ai = st.checkbox("启用大模型增强生成（可选）", value=True)
-        submitted = st.form_submit_button("生成 AI 方案包", type="primary")
+        ai_provider = st.selectbox(
+            "大模型提供方（必选）",
+            options=["自动", "OpenAI", "Qwen"],
+            index=0,
+            help="仅支持 OpenAI/Qwen；自动模式优先尝试 OPENAI_API_KEY，其次 QWEN_API_KEY。",
+        )
+        submitted = st.form_submit_button("生成（仅大模型）方案包", type="primary")
 
     return {
         "submitted": submitted,
@@ -64,7 +69,7 @@ def _render_input_form() -> dict:
         "output_goal": output_goal,
         "needs_training": needs_training,
         "github_sync": github_sync,
-        "use_ai": use_ai,
+        "ai_provider": ai_provider,
     }
 
 
@@ -95,31 +100,35 @@ def main() -> None:
     overview = build_overview(spec)
     design_plan = build_design_plan(spec)
     scaffold = build_project_scaffold(spec)
+    bootstrap_files = build_bootstrap_files(spec)
     mermaid_code = generate_mermaid_flow(spec.task_type)
     diagram_note = build_diagram_explanation(spec.task_type)
     innovation_points = generate_innovation_points(spec)
     github_actions_from_ai: list[str] = []
 
-    if inputs["use_ai"]:
-        ready, ai_message = is_ai_ready()
-        if ready:
-            ai_payload = enhance_plan_with_ai(spec, design_plan)
-            if ai_payload:
-                overview = str(ai_payload.get("overview_md", overview))
-                ai_sections = ai_payload.get("sections", [])
-                if isinstance(ai_sections, list):
-                    parsed_sections = []
-                    for section in ai_sections:
-                        if isinstance(section, dict) and section.get("title") and isinstance(section.get("items"), list):
-                            parsed_sections.append(section)
-                    if parsed_sections:
-                        design_plan = parsed_sections
-                ai_actions = ai_payload.get("github_actions", [])
-                if isinstance(ai_actions, list):
-                    github_actions_from_ai = [str(action) for action in ai_actions if str(action).strip()]
-            st.success(ai_message)
-        else:
-            st.info(ai_message)
+    ready, ai_message, chosen_provider = is_ai_ready(inputs["ai_provider"])
+    if not ready:
+        st.error(ai_message)
+        st.stop()
+
+    ai_payload = enhance_plan_with_ai(spec, design_plan, chosen_provider)
+    if not ai_payload:
+        st.error("大模型返回结果不可解析，请重试或更换模型。")
+        st.stop()
+
+    overview = str(ai_payload.get("overview_md", overview))
+    ai_sections = ai_payload.get("sections", [])
+    if isinstance(ai_sections, list):
+        parsed_sections = []
+        for section in ai_sections:
+            if isinstance(section, dict) and section.get("title") and isinstance(section.get("items"), list):
+                parsed_sections.append(section)
+        if parsed_sections:
+            design_plan = parsed_sections
+    ai_actions = ai_payload.get("github_actions", [])
+    if isinstance(ai_actions, list):
+        github_actions_from_ai = [str(action) for action in ai_actions if str(action).strip()]
+    st.success(ai_message)
 
     tabs = st.tabs(
         [
@@ -127,6 +136,7 @@ def main() -> None:
             "结构化需求",
             "分阶段执行方案",
             "项目骨架",
+            "初始化文件",
             "逻辑图",
             "GitHub 协作",
             "创新点",
@@ -157,10 +167,17 @@ def main() -> None:
             st.markdown(f"- **{item.path}**：{item.purpose}")
 
     with tabs[4]:
+        st.markdown("以下内容可直接复制到项目中，快速完成初始化：")
+        for path, content in bootstrap_files.items():
+            st.markdown(f"**{path}**")
+            language = "yaml" if path.endswith((".yml", ".yaml")) else "markdown" if path.endswith(".md") else "toml" if path.endswith(".toml") else "python" if path.endswith(".py") else "text"
+            st.code(content, language=language)
+
+    with tabs[5]:
         st.code(mermaid_code, language="mermaid")
         st.markdown(diagram_note)
 
-    with tabs[5]:
+    with tabs[6]:
         if spec.github_sync:
             st.markdown(
                 """
@@ -194,7 +211,7 @@ def main() -> None:
         else:
             st.info("你当前未勾选 GitHub 同步；若需要团队协作，建议启用后自动生成同步动作。")
 
-    with tabs[6]:
+    with tabs[7]:
         for idx, point in enumerate(innovation_points, start=1):
             st.markdown(f"{idx}. {point}")
 

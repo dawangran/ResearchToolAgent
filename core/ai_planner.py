@@ -9,18 +9,48 @@ import os
 from core.schemas import PlanSection, ResearchSpec
 
 
-def is_ai_ready() -> tuple[bool, str]:
-    """Check whether OpenAI SDK and API key are available."""
-    has_key = bool(os.getenv("OPENAI_API_KEY"))
+def _resolve_provider(provider: str) -> str:
+    normalized = provider.lower().strip()
+    if normalized == "自动":
+        if os.getenv("OPENAI_API_KEY"):
+            return "openai"
+        if os.getenv("QWEN_API_KEY"):
+            return "qwen"
+        return "openai"
+    return normalized
+
+
+def _provider_config(provider: str) -> tuple[str, str | None, str]:
+    normalized = _resolve_provider(provider)
+    if normalized == "qwen":
+        return (
+            os.getenv("QWEN_API_KEY", ""),
+            os.getenv("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            os.getenv("QWEN_MODEL", "qwen-plus"),
+        )
+    return (
+        os.getenv("OPENAI_API_KEY", ""),
+        os.getenv("OPENAI_BASE_URL"),
+        os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+    )
+
+
+def is_ai_ready(provider: str) -> tuple[bool, str, str]:
+    """Check whether selected provider, SDK and API key are available."""
+    chosen_provider = _resolve_provider(provider)
+    api_key, _, _ = _provider_config(chosen_provider)
+    has_key = bool(api_key)
     if not has_key:
-        return False, "未检测到 OPENAI_API_KEY，已回退到本地规则模式。"
+        if chosen_provider == "qwen":
+            return False, "未检测到 QWEN_API_KEY（请先配置后再生成）。", chosen_provider
+        return False, "未检测到 OPENAI_API_KEY（请先配置后再生成）。", chosen_provider
 
     try:
         importlib.import_module("openai")
     except ModuleNotFoundError:
-        return False, "未安装 openai SDK，已回退到本地规则模式。"
+        return False, "未安装 openai SDK，请先安装 requirements.txt 依赖。", chosen_provider
 
-    return True, "已启用大模型增强输出。"
+    return True, f"已启用大模型增强输出（{chosen_provider.upper()}）。", chosen_provider
 
 
 def _build_prompt(spec: ResearchSpec, sections: list[PlanSection]) -> str:
@@ -40,15 +70,15 @@ def _build_prompt(spec: ResearchSpec, sections: list[PlanSection]) -> str:
     )
 
 
-def enhance_plan_with_ai(spec: ResearchSpec, sections: list[PlanSection]) -> dict | None:
-    """Return AI-enhanced plan payload, or None when unavailable/invalid."""
-    ready, _ = is_ai_ready()
+def enhance_plan_with_ai(spec: ResearchSpec, sections: list[PlanSection], provider: str) -> dict | None:
+    """Return AI-enhanced plan payload, or None when API output is invalid."""
+    ready, _, chosen_provider = is_ai_ready(provider)
     if not ready:
         return None
 
+    api_key, base_url, model = _provider_config(chosen_provider)
     openai_module = importlib.import_module("openai")
-    client = openai_module.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    client = openai_module.OpenAI(api_key=api_key, base_url=base_url)
 
     response = client.responses.create(
         model=model,
