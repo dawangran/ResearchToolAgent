@@ -8,14 +8,15 @@ from core.schemas import PlanSection, ResearchSpec, ScaffoldEntry, ScaffoldSugge
 def build_overview(spec: ResearchSpec) -> str:
     """Generate concise overview from structured spec."""
     training_note = "包含模型训练闭环" if spec.needs_training else "以规则/算法流程为主"
+    github_note = "已启用 GitHub 协作同步" if spec.github_sync else "当前为本地优先方案"
     deliverables_text = "、".join(spec.deliverables)
     return (
         f"### {spec.project_name}\n"
-        f"该工具属于 **{spec.task_type}**，目标是解决：{spec.problem_statement}\n\n"
+        f"我理解你要做的是一个 **{spec.task_type}**，核心目标是：{spec.problem_statement}\n\n"
         f"- 输入数据：{spec.input_format}\n"
         f"- 输出目标：{spec.output_format}\n"
         f"- 部署形态：{spec.deployment_form}\n"
-        f"- 实施特点：{training_note}，并产出 {deliverables_text}。"
+        f"- 实施特点：{training_note}，{github_note}，并产出 {deliverables_text}。"
     )
 
 
@@ -23,7 +24,7 @@ def build_design_plan(spec: ResearchSpec) -> list[PlanSection]:
     """Generate five-step design plan tailored for research tooling."""
     sections = [
         PlanSection(
-            title="输入与数据约定",
+            title="阶段 1：输入与数据约定",
             items=[
                 f"定义输入格式与字段映射：{spec.input_format}",
                 "提供最小可运行样例数据与数据校验规则，确保复现实验。",
@@ -31,15 +32,15 @@ def build_design_plan(spec: ResearchSpec) -> list[PlanSection]:
             ],
         ),
         PlanSection(
-            title="任务拆解",
+            title="阶段 2：任务拆解与里程碑",
             items=[
                 "将需求拆分为：解析层、核心算法层、结果组织层、展示层。",
                 "每个子模块提供独立函数接口，便于单元测试与后续替换。",
-                "在 docs 中维护流程说明，支持科研协作与审阅。",
+                "在 docs 中维护流程说明与里程碑，支持科研协作与审阅。",
             ],
         ),
         PlanSection(
-            title="核心算法模块",
+            title="阶段 3：核心算法模块",
             items=[
                 f"围绕 {spec.task_type} 构建可插拔算法流程。",
                 "预留参数配置入口，支持快速试验不同策略。",
@@ -47,7 +48,7 @@ def build_design_plan(spec: ResearchSpec) -> list[PlanSection]:
             ],
         ),
         PlanSection(
-            title="输出与评估方式",
+            title="阶段 4：输出与评估方式",
             items=[
                 f"生成面向交付的输出：{spec.output_format}。",
                 "定义基础评估指标（准确性、稳定性、运行效率）。",
@@ -55,7 +56,7 @@ def build_design_plan(spec: ResearchSpec) -> list[PlanSection]:
             ],
         ),
         PlanSection(
-            title="可扩展点",
+            title="阶段 5：可扩展与协作",
             items=[
                 "支持新数据格式与新任务模板的快速接入。",
                 "逐步引入自动化测试与基准数据集回归验证。",
@@ -67,6 +68,8 @@ def build_design_plan(spec: ResearchSpec) -> list[PlanSection]:
     if spec.needs_training:
         sections[2].items.append("加入训练/验证/测试分层流程及模型持久化策略。")
         sections[3].items.append("增加模型评估指标（AUC、F1、混淆矩阵）与阈值分析。")
+    if spec.github_sync:
+        sections[4].items.append("采用 GitHub Flow：feature 分支开发 + PR 审阅 + CI 校验后合并。")
 
     return sections
 
