@@ -8,7 +8,11 @@ from core.schemas import PlanSection, ResearchSpec, ScaffoldEntry, ScaffoldSugge
 def build_overview(spec: ResearchSpec) -> str:
     """Generate concise overview from structured spec."""
     training_note = "包含模型训练闭环" if spec.needs_training else "以规则/算法流程为主"
-    github_note = "已启用 GitHub 协作同步" if spec.github_sync else "当前为本地优先方案"
+    if spec.github_sync:
+        repo_ref = f"{spec.github_owner}/{spec.github_repo}" if spec.github_owner and spec.github_repo else "目标仓库待补充"
+        github_note = f"已启用 GitHub 协作同步（目标：{repo_ref}）"
+    else:
+        github_note = "当前为本地优先方案"
     deliverables_text = "、".join(spec.deliverables)
     return (
         f"### {spec.project_name}\n"
@@ -22,6 +26,53 @@ def build_overview(spec: ResearchSpec) -> str:
 
 def build_design_plan(spec: ResearchSpec) -> list[PlanSection]:
     """Generate five-step design plan tailored for research tooling."""
+    if spec.needs_training:
+        sections = [
+            PlanSection(
+                title="阶段 1：数据契约与实验边界",
+                items=[
+                    f"明确输入数据规范：{spec.input_format}，定义样本粒度、标签字典与数据切分策略。",
+                    "建立数据质控清单（缺失值、异常值、类别分布、重复样本）并输出 QC 报告。",
+                    "定义首版验收目标：至少一个核心指标（如 F1）+ 一个稳定性指标（如方差/置信区间）。",
+                ],
+            ),
+            PlanSection(
+                title="阶段 2：Baseline 与可复现训练",
+                items=[
+                    "先实现可复现 baseline（固定随机种子、固定切分、固定评估脚本）。",
+                    "将训练参数配置化（学习率、batch size、epoch、正则化策略）。",
+                    "记录训练日志与模型版本，确保同一配置可重复得到一致结果。",
+                ],
+            ),
+            PlanSection(
+                title="阶段 3：评估体系与误差分析",
+                items=[
+                    f"围绕 {spec.output_format} 设计评估输出：指标表、混淆矩阵、关键样本误差分析。",
+                    "补充分组评估（按类别/样本来源）定位模型失效边界。",
+                    "沉淀误差修复策略：数据增强、特征修正、阈值调优。",
+                ],
+            ),
+            PlanSection(
+                title="阶段 4：可解释性与报告自动化",
+                items=[
+                    "输出可解释性结果（特征重要性/SHAP）并形成可读结论。",
+                    "自动生成评估报告（结论摘要、图表、配置快照、复现实验命令）。",
+                    "将报告结构模板化，保证每轮迭代都可横向对比。",
+                ],
+            ),
+            PlanSection(
+                title="阶段 5：工程化交付与协作",
+                items=[
+                    "封装训练入口脚本（CLI）并统一产物目录（模型、日志、图表、报告）。",
+                    "建立单元测试与回归测试，覆盖数据解析和评估逻辑。",
+                    "形成版本化交付规范（版本号、变更记录、回滚策略）。",
+                ],
+            ),
+        ]
+        if spec.github_sync:
+            sections[4].items.append("采用 GitHub Flow + PR 审阅 + CI 校验，保证多人协作质量。")
+        return sections
+
     sections = [
         PlanSection(
             title="阶段 1：输入与数据约定",
