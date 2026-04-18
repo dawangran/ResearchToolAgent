@@ -44,12 +44,15 @@ export QWEN_API_KEY="your_qwen_api_key"
 # export DASHSCOPE_API_KEY="your_qwen_api_key"
 export QWEN_MODEL="qwen-plus"  # 可选
 export QWEN_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"  # 可选
+# 也可使用 DASHSCOPE_BASE_URL（等价）：
+# export DASHSCOPE_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
 ```
 
 3. 在页面选择提供方（自动/OpenAI/Qwen）并生成方案。  
    - 可直接在界面填写模型名、API Key、Base URL（优先级高于环境变量）。
    - 自动模式：优先使用 `OPENAI_API_KEY`，若不存在则尝试 `QWEN_API_KEY`。
    - 若 OpenAI 返回鉴权/权限类错误（如 `AccessDenied.Unpurchased`、`invalid_api_key`）且已配置 Qwen Key，会自动回退到 Qwen 再尝试一次。
+   - 若 Qwen 调用失败，页面会显示错误码、错误信息、模型名与 Base URL，便于快速排查配置问题。
 4. 若勾选 GitHub 同步，会额外生成 `.github/workflows/ci.yml`、Issue/PR 模板建议，支持仓库协作开发。
 
 ## 项目结构
