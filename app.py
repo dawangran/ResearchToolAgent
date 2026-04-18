@@ -163,7 +163,7 @@ def main() -> None:
     diagram_note = build_diagram_explanation(spec.task_type)
     innovation_points = generate_innovation_points(spec)
     algorithm_logic = build_algorithm_logic(spec)
-    api_map = build_api_map()
+    api_map = build_api_map(spec)
     sequence_mermaid = build_algorithm_sequence_mermaid(spec)
     github_publish_steps = build_github_publish_steps(spec)
     github_token_check_script = build_github_token_check_script()
