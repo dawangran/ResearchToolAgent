@@ -140,6 +140,12 @@ def main() -> None:
         st.warning("请先输入自然语言需求描述，再点击“生成方案”。")
         return
 
+    if inputs["github_sync"] and (
+        not inputs["github_owner"].strip() or not inputs["github_repo"].strip()
+    ):
+        st.warning("你已开启 GitHub 同步：请先填写 GitHub Owner 与 GitHub Repo，再生成方案，这样可直接推送到指定仓库。")
+        return
+
     spec = parse_user_request(
         project_name=inputs["project_name"],
         problem_statement=inputs["problem_statement"],
