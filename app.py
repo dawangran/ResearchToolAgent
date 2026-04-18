@@ -5,7 +5,11 @@ from __future__ import annotations
 import streamlit as st
 
 from core.ai_planner import enhance_plan_with_ai, is_ai_ready
+from core.advisor import build_feasibility_report, build_next_actions
 from core.diagram import build_diagram_explanation, generate_mermaid_flow
+from core.explain import build_algorithm_logic, build_algorithm_sequence_mermaid, build_api_map
+from core.github_publish import build_github_publish_script, build_github_publish_steps, build_github_token_check_script
+from core.humanize import build_clarification_questions, build_user_story
 from core.innovation import generate_innovation_points
 from core.parser import parse_user_request
 from core.planner import build_bootstrap_files, build_design_plan, build_overview, build_project_scaffold
@@ -122,6 +126,16 @@ def main() -> None:
     mermaid_code = generate_mermaid_flow(spec.task_type)
     diagram_note = build_diagram_explanation(spec.task_type)
     innovation_points = generate_innovation_points(spec)
+    algorithm_logic = build_algorithm_logic(spec)
+    api_map = build_api_map()
+    sequence_mermaid = build_algorithm_sequence_mermaid(spec)
+    github_publish_steps = build_github_publish_steps(spec)
+    github_token_check_script = build_github_token_check_script()
+    github_publish_script = build_github_publish_script(spec)
+    feasibility_report = build_feasibility_report(spec)
+    next_actions = build_next_actions(spec)
+    clarification_questions = build_clarification_questions(spec)
+    user_story = build_user_story(spec)
     github_actions_from_ai: list[str] = []
 
     ai_overrides = {
@@ -167,14 +181,22 @@ def main() -> None:
             "分阶段执行方案",
             "项目骨架",
             "初始化文件",
+            "核心算法逻辑",
+            "API 职责地图",
             "逻辑图",
-            "GitHub 协作",
+            "GitHub 直连发布",
+            "可行性体检",
+            "行动清单",
+            "智能追问",
             "创新点",
         ]
     )
 
     with tabs[0]:
         st.markdown(overview)
+        st.markdown("---")
+        st.markdown("### 用户视角描述（更人性化）")
+        st.markdown(user_story)
 
     with tabs[1]:
         st.json(spec.model_dump())
@@ -204,44 +226,63 @@ def main() -> None:
             st.code(content, language=language)
 
     with tabs[5]:
-        st.code(mermaid_code, language="mermaid")
-        st.markdown(diagram_note)
+        st.markdown("### 工具核心算法（可落地逻辑）")
+        for step in algorithm_logic:
+            st.markdown(f"**{step['step']}**")
+            st.markdown(f"- 逻辑：{step['logic']}")
+            st.markdown(f"- 输入：{step['input']}")
+            st.markdown(f"- 输出：{step['output']}")
 
     with tabs[6]:
-        if spec.github_sync:
-            st.markdown(
-                """
-                ### 推荐 GitHub 同步动作
-                1. 初始化仓库并创建 `main` + `dev` 双分支策略。  
-                2. 在 `README.md` 写清目标、运行方式、数据入口与输出说明。  
-                3. 建立 issue 模板（需求、bug、实验记录）与 PR 模板。  
-                4. 配置基础 CI（lint + test + build）确保每次合并可验证。  
-                5. 使用里程碑管理研究阶段（MVP、实验优化、可复现发布）。  
-                """
-            )
-            st.code(
-                "\n".join(
-                    [
-                        "git init",
-                        "git checkout -b main",
-                        "git checkout -b dev",
-                        "git add .",
-                        "git commit -m 'chore: bootstrap project scaffold'",
-                        "git remote add origin <your-repo-url>",
-                        "git push -u origin main",
-                        "git push -u origin dev",
-                    ]
-                ),
-                language="bash",
-            )
-            if github_actions_from_ai:
-                st.markdown("### AI 补充协作建议")
-                for action in github_actions_from_ai:
-                    st.markdown(f"- {action}")
-        else:
-            st.info("你当前未勾选 GitHub 同步；若需要团队协作，建议启用后自动生成同步动作。")
+        st.markdown("### 每个 API 是干什么的")
+        st.table(api_map)
+        st.caption("建议在重构时保持 API 输入输出稳定，便于替换内部实现而不破坏 UI。")
 
     with tabs[7]:
+        st.markdown("### 主流程图（美化版）")
+        st.code(mermaid_code, language="mermaid")
+        st.markdown(diagram_note)
+        st.markdown("### 时序图（看清调用关系）")
+        st.code(sequence_mermaid, language="mermaid")
+
+    with tabs[8]:
+        st.markdown("### 直接发布到 GitHub（无需手动网页点创建）")
+        for idx, item in enumerate(github_publish_steps, start=1):
+            st.markdown(f"{idx}. {item}")
+        st.markdown("**Step A：先校验 Token**")
+        st.code(github_token_check_script, language="bash")
+        st.markdown("**Step B：创建仓库并发布代码**")
+        st.code(github_publish_script, language="bash")
+        st.info("提示：请先在 GitHub 生成 PAT，并避免将 Token 提交到仓库。")
+
+        if spec.github_sync and github_actions_from_ai:
+            st.markdown("### AI 补充协作建议")
+            for action in github_actions_from_ai:
+                st.markdown(f"- {action}")
+
+    with tabs[9]:
+        st.markdown("### 项目可行性体检")
+        st.metric("综合评分", f"{feasibility_report['overall_score']}/5", feasibility_report["level"])
+        st.table(feasibility_report["dimensions"])
+
+    with tabs[10]:
+        st.markdown("### 建议你按这个节奏推进")
+        st.markdown("**现在就做（Today）**")
+        for item in next_actions["now"]:
+            st.markdown(f"- {item}")
+        st.markdown("**本周完成（This Week）**")
+        for item in next_actions["this_week"]:
+            st.markdown(f"- {item}")
+        st.markdown("**下一阶段（Next Stage）**")
+        for item in next_actions["next_stage"]:
+            st.markdown(f"- {item}")
+
+    with tabs[11]:
+        st.markdown("### 系统智能追问（避免需求遗漏）")
+        for idx, q in enumerate(clarification_questions, start=1):
+            st.markdown(f"{idx}. {q}")
+
+    with tabs[12]:
         for idx, point in enumerate(innovation_points, start=1):
             st.markdown(f"{idx}. {point}")
 
