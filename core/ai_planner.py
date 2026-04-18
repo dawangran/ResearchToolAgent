@@ -167,8 +167,15 @@ def enhance_plan_with_ai(
 
     openai_module = importlib.import_module("openai")
     auth_error_type = getattr(openai_module, "AuthenticationError", None)
+
     if chosen_provider != "openai":
-        return _request_with_provider(chosen_provider)
+        try:
+            return _request_with_provider(chosen_provider)
+        except Exception as exc:  # noqa: BLE001
+            provider_name = chosen_provider.upper()
+            raise RuntimeError(
+                f"{provider_name} 请求失败，请检查 API Key、账户权限、模型名称或 Base URL 配置。"
+            ) from exc
 
     try:
         return _request_with_provider("openai")
@@ -181,6 +188,10 @@ def enhance_plan_with_ai(
         if should_fallback and has_qwen_key:
             return _request_with_provider("qwen")
 
+        error_code = _extract_error_code(exc)
+        hint = "（可尝试切换到 Qwen）"
+        if error_code:
+            hint = f"（错误码: {error_code}，可尝试切换到 Qwen）"
         raise RuntimeError(
-            "OpenAI 请求失败，请检查 API Key、账户权限或模型可用性（可尝试切换到 Qwen）。"
+            f"OpenAI 请求失败，请检查 API Key、账户权限或模型可用性{hint}。"
         ) from exc
