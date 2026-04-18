@@ -258,3 +258,36 @@ def build_bootstrap_files(spec: ResearchSpec) -> dict[str, str]:
         )
 
     return files
+
+
+def build_professional_blueprint(spec: ResearchSpec) -> dict[str, object]:
+    """Build a professional, human-centered blueprint for the requested project."""
+    architecture_layers = [
+        {"layer": "L1 数据接入层", "desc": f"统一接入 {spec.input_format} 数据并完成质量校验与数据契约约束。"},
+        {"layer": "L2 算法与训练层", "desc": "构建可复现训练流水线（固定种子、配置化参数、版本化实验）。"},
+        {"layer": "L3 评估与解释层", "desc": f"围绕 {spec.output_format} 产出指标体系、误差分析与可解释性证据。"},
+        {"layer": "L4 交付与协作层", "desc": "生成报告与图表，沉淀 CLI 命令、文档规范与团队协作流程。"},
+    ]
+    milestones = [
+        {"name": "M1 需求冻结", "outcome": "冻结输入样例、标签定义、验收指标与交付格式。"},
+        {"name": "M2 Baseline 可跑通", "outcome": "形成可复现实验闭环，输出首版模型与评估报告。"},
+        {"name": "M3 可解释增强", "outcome": "补齐可解释性分析与误差修复策略，形成可审阅技术报告。"},
+        {"name": "M4 工程化交付", "outcome": "完成脚本化发布、测试覆盖与协作规范，支持持续迭代。"},
+    ]
+    ux_principles = [
+        "科技感：统一深色主题 + 高对比强调色，突出专业研发气质。",
+        "专业性：每个阶段都给出输入/输出/验收标准，避免空泛建议。",
+        "人性化：默认给出下一步动作与常见错误提示，降低上手门槛。",
+    ]
+    risks = [
+        "数据标签噪声导致模型不稳定：引入数据质控报告和抽样复核机制。",
+        "训练结果不可复现：固定随机种子并记录完整运行配置。",
+        "交付难以沟通：统一报告模板（结论摘要+指标表+可视化图）。",
+    ]
+    return {
+        "vision": f"构建一个面向 {spec.task_type} 的高可复现研发系统，从 {spec.input_format} 稳定产出 {spec.output_format}。",
+        "architecture_layers": architecture_layers,
+        "milestones": milestones,
+        "ux_principles": ux_principles,
+        "risks": risks,
+    }

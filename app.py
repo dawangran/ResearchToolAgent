@@ -8,6 +8,7 @@ from core.ai_planner import enhance_plan_with_ai, is_ai_ready
 from core.advisor import build_feasibility_report, build_next_actions
 from core.diagram import build_diagram_explanation, generate_mermaid_flow
 from core.explain import build_algorithm_logic, build_algorithm_sequence_mermaid, build_api_map
+from core.exporter import materialize_project
 from core.github_publish import (
     build_github_preflight,
     build_github_publish_script,
@@ -17,7 +18,13 @@ from core.github_publish import (
 from core.humanize import build_clarification_questions, build_user_story
 from core.innovation import generate_innovation_points
 from core.parser import parse_user_request
-from core.planner import build_bootstrap_files, build_design_plan, build_overview, build_project_scaffold
+from core.planner import (
+    build_bootstrap_files,
+    build_design_plan,
+    build_overview,
+    build_professional_blueprint,
+    build_project_scaffold,
+)
 
 
 EXAMPLE_PROMPT = (
@@ -28,6 +35,43 @@ EXAMPLE_PROMPT = (
 def _render_header() -> None:
     st.title("ResearchToolAgent")
     st.caption("像 AI 产品经理一样，把你的想法转化为可落地研发方案 + GitHub 协作动作")
+
+
+def _apply_tech_theme() -> None:
+    """Apply a more tech/professional visual style to the Streamlit app."""
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background: radial-gradient(circle at top right, #11203a 0%, #0B1020 45%, #070B16 100%);
+            color: #E6EEFF;
+        }
+        .block-container {
+            max-width: 1180px;
+            padding-top: 1.2rem;
+            padding-bottom: 2rem;
+        }
+        .tech-card {
+            border: 1px solid rgba(108, 141, 255, 0.35);
+            background: linear-gradient(145deg, rgba(28, 38, 78, 0.72), rgba(11, 17, 34, 0.88));
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin: 8px 0 14px 0;
+        }
+        .tech-title {
+            font-size: 1.04rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #8FB3FF;
+        }
+        .tech-muted {
+            color: #AFC3EC;
+            font-size: 0.92rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _render_input_form() -> dict:
@@ -129,6 +173,7 @@ def _render_input_form() -> dict:
 def main() -> None:
     """Run the Streamlit app."""
     st.set_page_config(page_title="ResearchToolAgent", page_icon="🧪", layout="wide")
+    _apply_tech_theme()
     _render_header()
     inputs = _render_input_form()
 
@@ -169,6 +214,7 @@ def main() -> None:
     overview = build_overview(spec)
     design_plan = build_design_plan(spec)
     scaffold = build_project_scaffold(spec)
+    blueprint = build_professional_blueprint(spec)
     bootstrap_files = build_bootstrap_files(spec)
     mermaid_code = generate_mermaid_flow(spec.task_type)
     diagram_note = build_diagram_explanation(spec.task_type)
@@ -225,6 +271,7 @@ def main() -> None:
         [
             "AI 总览",
             "结构化需求",
+            "专业重规划",
             "分阶段执行方案",
             "项目骨架",
             "初始化文件",
@@ -249,6 +296,23 @@ def main() -> None:
         st.json(spec.model_dump())
 
     with tabs[2]:
+        st.markdown('<div class="tech-card"><div class="tech-title">项目愿景</div>', unsafe_allow_html=True)
+        st.markdown(blueprint["vision"])
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("### 架构分层（专业版）")
+        for layer in blueprint["architecture_layers"]:
+            st.markdown(f"- **{layer['layer']}**：{layer['desc']}")
+        st.markdown("### 里程碑（Milestones）")
+        for milestone in blueprint["milestones"]:
+            st.markdown(f"- **{milestone['name']}**：{milestone['outcome']}")
+        st.markdown("### 风险与人性化策略")
+        for risk in blueprint["risks"]:
+            st.markdown(f"- {risk}")
+        st.markdown("### 体验原则（科技/专业/人性化）")
+        for principle in blueprint["ux_principles"]:
+            st.markdown(f"- {principle}")
+
+    with tabs[3]:
         for idx, section in enumerate(design_plan, start=1):
             if isinstance(section, dict):
                 title = section.get("title", f"阶段 {idx}")
@@ -260,19 +324,30 @@ def main() -> None:
             for bullet in items:
                 st.markdown(f"- {bullet}")
 
-    with tabs[3]:
+    with tabs[4]:
         st.code(scaffold.tree, language="text")
         for item in scaffold.descriptions:
             st.markdown(f"- **{item.path}**：{item.purpose}")
 
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("以下内容可直接复制到项目中，快速完成初始化：")
+        if "generated_project_path" not in st.session_state:
+            st.session_state["generated_project_path"] = ""
+        if st.button("一键写入本地项目目录", type="secondary"):
+            generated_path = materialize_project(
+                base_dir="generated_projects",
+                project_name=spec.project_name,
+                files=bootstrap_files,
+            )
+            st.session_state["generated_project_path"] = generated_path
+        if st.session_state["generated_project_path"]:
+            st.success(f"已生成到本地目录：{st.session_state['generated_project_path']}")
         for path, content in bootstrap_files.items():
             st.markdown(f"**{path}**")
             language = "yaml" if path.endswith((".yml", ".yaml")) else "markdown" if path.endswith(".md") else "toml" if path.endswith(".toml") else "python" if path.endswith(".py") else "text"
             st.code(content, language=language)
 
-    with tabs[5]:
+    with tabs[6]:
         st.markdown("### 工具核心算法（可落地逻辑）")
         for step in algorithm_logic:
             st.markdown(f"**{step['step']}**")
@@ -280,19 +355,19 @@ def main() -> None:
             st.markdown(f"- 输入：{step['input']}")
             st.markdown(f"- 输出：{step['output']}")
 
-    with tabs[6]:
+    with tabs[7]:
         st.markdown("### 每个 API 是干什么的")
         st.table(api_map)
         st.caption("建议在重构时保持 API 输入输出稳定，便于替换内部实现而不破坏 UI。")
 
-    with tabs[7]:
+    with tabs[8]:
         st.markdown("### 主流程图（美化版）")
         st.code(mermaid_code, language="mermaid")
         st.markdown(diagram_note)
         st.markdown("### 时序图（看清调用关系）")
         st.code(sequence_mermaid, language="mermaid")
 
-    with tabs[8]:
+    with tabs[9]:
         st.markdown("### 直接发布到 GitHub（无需手动网页点创建）")
         st.markdown("#### 同步预检（专业版）")
         st.success("预检通过，可执行同步。")
@@ -311,12 +386,12 @@ def main() -> None:
             for action in github_actions_from_ai:
                 st.markdown(f"- {action}")
 
-    with tabs[9]:
+    with tabs[10]:
         st.markdown("### 项目可行性体检")
         st.metric("综合评分", f"{feasibility_report['overall_score']}/5", feasibility_report["level"])
         st.table(feasibility_report["dimensions"])
 
-    with tabs[10]:
+    with tabs[11]:
         st.markdown("### 建议你按这个节奏推进")
         st.markdown("**现在就做（Today）**")
         for item in next_actions["now"]:
@@ -328,12 +403,12 @@ def main() -> None:
         for item in next_actions["next_stage"]:
             st.markdown(f"- {item}")
 
-    with tabs[11]:
+    with tabs[12]:
         st.markdown("### 系统智能追问（避免需求遗漏）")
         for idx, q in enumerate(clarification_questions, start=1):
             st.markdown(f"{idx}. {q}")
 
-    with tabs[12]:
+    with tabs[13]:
         for idx, point in enumerate(innovation_points, start=1):
             st.markdown(f"{idx}. {point}")
 
