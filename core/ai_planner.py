@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+from typing import Any
 
 from core.schemas import PlanSection, ResearchSpec
 
@@ -56,6 +57,51 @@ def is_ai_ready(provider: str, overrides: ProviderOverrides | None = None) -> tu
 
     return True, f"已启用大模型增强输出（{chosen_provider.upper()}）。", chosen_provider
 
+
+
+
+def _extract_error_code(exc: Exception) -> str:
+    """Extract provider error code from OpenAI-compatible exceptions."""
+    code = getattr(exc, "code", None)
+    if isinstance(code, str) and code.strip():
+        return code.strip()
+
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        nested_code = body.get("code")
+        if isinstance(nested_code, str) and nested_code.strip():
+            return nested_code.strip()
+        error_payload = body.get("error")
+        if isinstance(error_payload, dict):
+            nested_code = error_payload.get("code")
+            if isinstance(nested_code, str) and nested_code.strip():
+                return nested_code.strip()
+
+    response = getattr(exc, "response", None)
+    if response is not None:
+        try:
+            payload: Any = response.json()
+        except Exception:  # noqa: BLE001
+            payload = None
+        if isinstance(payload, dict):
+            nested_code = payload.get("code")
+            if isinstance(nested_code, str) and nested_code.strip():
+                return nested_code.strip()
+            error_payload = payload.get("error")
+            if isinstance(error_payload, dict):
+                nested_code = error_payload.get("code")
+                if isinstance(nested_code, str) and nested_code.strip():
+                    return nested_code.strip()
+
+    return ""
+
+
+def _is_recoverable_openai_access_error(exc: Exception) -> bool:
+    """Whether an OpenAI failure should fallback to another provider."""
+    code = _extract_error_code(exc).lower()
+    if not code:
+        return False
+    return code in {"accessdenied.unpurchased", "invalid_api_key", "insufficient_quota"}
 
 def _build_prompt(spec: ResearchSpec, sections: list[PlanSection]) -> str:
     section_text = "\n".join(
@@ -128,6 +174,13 @@ def enhance_plan_with_ai(
         return _request_with_provider("openai")
     except Exception as exc:  # noqa: BLE001
         has_qwen_key = bool(os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY"))
-        if auth_error_type and isinstance(exc, auth_error_type) and has_qwen_key:
+        should_fallback = bool(auth_error_type and isinstance(exc, auth_error_type))
+        if not should_fallback:
+            should_fallback = _is_recoverable_openai_access_error(exc)
+
+        if should_fallback and has_qwen_key:
             return _request_with_provider("qwen")
-        raise
+
+        raise RuntimeError(
+            "OpenAI 请求失败，请检查 API Key、账户权限或模型可用性（可尝试切换到 Qwen）。"
+        ) from exc

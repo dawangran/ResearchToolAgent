@@ -136,7 +136,12 @@ def main() -> None:
         st.error(ai_message)
         st.stop()
 
-    ai_payload = enhance_plan_with_ai(spec, design_plan, chosen_provider, overrides=ai_overrides)
+    try:
+        ai_payload = enhance_plan_with_ai(spec, design_plan, chosen_provider, overrides=ai_overrides)
+    except RuntimeError as exc:
+        st.error(str(exc))
+        st.stop()
+
     if not ai_payload:
         st.error("大模型返回结果不可解析，请重试或更换模型。")
         st.stop()
