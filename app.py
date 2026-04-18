@@ -56,6 +56,28 @@ def _render_input_form() -> dict:
         output_goal = st.text_input("输出目标（可选）", placeholder="例如：分类结果 + 报告 + 图表")
         needs_training = st.checkbox("是否需要训练模型（可选）", value=False)
         github_sync = st.checkbox("是否需要 GitHub 同步（可选）", value=True)
+        st.caption("如果开启 GitHub 同步，建议先填写连接信息，系统会生成可直接推送到指定仓库的脚本。")
+        github_owner = st.text_input(
+            "GitHub Owner（可选）",
+            placeholder="例如：your-name 或 your-org",
+            help="开启 GitHub 同步时建议必填，用于生成目标仓库地址。",
+        )
+        github_repo = st.text_input(
+            "GitHub Repo（可选）",
+            placeholder="例如：nano-signal-trainer",
+            help="开启 GitHub 同步时建议必填；留空会自动使用项目名。",
+        )
+        github_visibility = st.selectbox(
+            "仓库可见性（可选）",
+            options=["public", "private"],
+            index=0,
+            help="若选择 private，脚本会默认创建私有仓库。",
+        )
+        github_default_branch = st.text_input(
+            "默认分支名（可选）",
+            value="main",
+            help="用于首次推送分支名，例如 main 或 master。",
+        )
         ai_provider = st.selectbox(
             "大模型提供方（必选）",
             options=["自动", "OpenAI", "Qwen"],
@@ -88,6 +110,10 @@ def _render_input_form() -> dict:
         "output_goal": output_goal,
         "needs_training": needs_training,
         "github_sync": github_sync,
+        "github_owner": github_owner,
+        "github_repo": github_repo,
+        "github_visibility": github_visibility,
+        "github_default_branch": github_default_branch,
         "ai_provider": ai_provider,
         "ai_model": ai_model,
         "ai_api_key": ai_api_key,
@@ -109,6 +135,12 @@ def main() -> None:
         st.warning("请先输入自然语言需求描述，再点击“生成方案”。")
         return
 
+    if inputs["github_sync"] and (
+        not inputs["github_owner"].strip() or not inputs["github_repo"].strip()
+    ):
+        st.warning("你已开启 GitHub 同步：请先填写 GitHub Owner 与 GitHub Repo，再生成方案，这样可直接推送到指定仓库。")
+        return
+
     spec = parse_user_request(
         project_name=inputs["project_name"],
         problem_statement=inputs["problem_statement"],
@@ -117,6 +149,10 @@ def main() -> None:
         output_format=inputs["output_goal"],
         needs_training=inputs["needs_training"],
         github_sync=inputs["github_sync"],
+        github_owner=inputs["github_owner"],
+        github_repo=inputs["github_repo"],
+        github_visibility=inputs["github_visibility"],
+        github_default_branch=inputs["github_default_branch"],
     )
 
     overview = build_overview(spec)
