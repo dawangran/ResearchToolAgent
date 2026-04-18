@@ -16,6 +16,10 @@ class AdvisorTests(unittest.TestCase):
             needs_training=True,
             deployment_form="python library",
             github_sync=True,
+            github_owner="demo-user",
+            github_repo="demo-tool",
+            github_visibility="public",
+            github_default_branch="main",
             deliverables=["结构化需求说明"],
         )
 

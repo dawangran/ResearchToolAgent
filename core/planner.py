@@ -8,7 +8,11 @@ from core.schemas import PlanSection, ResearchSpec, ScaffoldEntry, ScaffoldSugge
 def build_overview(spec: ResearchSpec) -> str:
     """Generate concise overview from structured spec."""
     training_note = "包含模型训练闭环" if spec.needs_training else "以规则/算法流程为主"
-    github_note = "已启用 GitHub 协作同步" if spec.github_sync else "当前为本地优先方案"
+    if spec.github_sync:
+        repo_ref = f"{spec.github_owner}/{spec.github_repo}" if spec.github_owner and spec.github_repo else "目标仓库待补充"
+        github_note = f"已启用 GitHub 协作同步（目标：{repo_ref}）"
+    else:
+        github_note = "当前为本地优先方案"
     deliverables_text = "、".join(spec.deliverables)
     return (
         f"### {spec.project_name}\n"

@@ -81,6 +81,9 @@ def build_next_actions(spec: ResearchSpec) -> dict[str, list[str]]:
 
     if spec.task_type == "网页应用工具":
         now.append("先画页面信息架构：输入区、结果区、日志区、错误提示区。")
+    if spec.github_sync:
+        now.insert(0, "先配置 GitHub 连接信息：Owner、Repo、可见性、默认分支与 PAT。")
+        this_week.append("完成首次推送到指定仓库，并验证 CI 能在 PR 上自动运行。")
 
     return {"now": now, "this_week": this_week, "next_stage": next_stage}
 

@@ -102,6 +102,10 @@ def parse_user_request(
     output_format: str,
     needs_training: bool,
     github_sync: bool,
+    github_owner: str = "",
+    github_repo: str = "",
+    github_visibility: str = "public",
+    github_default_branch: str = "main",
 ) -> ResearchSpec:
     """Parse UI inputs into a normalized structured specification."""
     inferred_task = infer_task_type(problem_statement, task_type)
@@ -116,5 +120,9 @@ def parse_user_request(
         needs_training=inferred_training,
         deployment_form=infer_deployment_form(problem_statement, inferred_task),
         github_sync=github_sync,
+        github_owner=github_owner.strip(),
+        github_repo=github_repo.strip(),
+        github_visibility=github_visibility if github_visibility in {"public", "private"} else "public",
+        github_default_branch=github_default_branch.strip() or "main",
         deliverables=build_deliverables(inferred_task, inferred_training, github_sync),
     )
