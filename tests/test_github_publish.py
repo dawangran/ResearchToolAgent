@@ -1,6 +1,6 @@
 import unittest
 
-from core.github_publish import build_github_publish_script, build_github_publish_steps
+from core.github_publish import build_github_preflight, build_github_publish_script, build_github_publish_steps
 from core.schemas import ResearchSpec
 
 
@@ -34,6 +34,18 @@ class GithubPublishTests(unittest.TestCase):
         self.assertIn("export REPO_NAME='demo-repo'", script)
         self.assertIn("export REPO_PRIVATE='true'", script)
         self.assertIn('git push -u origin "$DEFAULT_BRANCH"', script)
+
+    def test_preflight_ready_for_valid_inputs(self):
+        report = build_github_preflight(self.spec)
+        self.assertTrue(report["ready"])
+        self.assertEqual([], report["errors"])
+        self.assertTrue(any("demo-user/demo-repo" in item for item in report["warnings"]))
+
+    def test_preflight_rejects_invalid_owner(self):
+        bad_spec = self.spec.model_copy(update={"github_owner": "bad_owner!"})
+        report = build_github_preflight(bad_spec)
+        self.assertFalse(report["ready"])
+        self.assertTrue(any("Owner 格式不合法" in item for item in report["errors"]))
 
 
 if __name__ == "__main__":

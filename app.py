@@ -8,7 +8,12 @@ from core.ai_planner import enhance_plan_with_ai, is_ai_ready
 from core.advisor import build_feasibility_report, build_next_actions
 from core.diagram import build_diagram_explanation, generate_mermaid_flow
 from core.explain import build_algorithm_logic, build_algorithm_sequence_mermaid, build_api_map
-from core.github_publish import build_github_publish_script, build_github_publish_steps, build_github_token_check_script
+from core.github_publish import (
+    build_github_preflight,
+    build_github_publish_script,
+    build_github_publish_steps,
+    build_github_token_check_script,
+)
 from core.humanize import build_clarification_questions, build_user_story
 from core.innovation import generate_innovation_points
 from core.parser import parse_user_request
@@ -154,6 +159,12 @@ def main() -> None:
         github_visibility=inputs["github_visibility"],
         github_default_branch=inputs["github_default_branch"],
     )
+    github_preflight = build_github_preflight(spec)
+    if not github_preflight["ready"]:
+        st.error("GitHub 同步预检未通过，请先修正以下问题：")
+        for msg in github_preflight["errors"]:
+            st.markdown(f"- {msg}")
+        st.stop()
 
     overview = build_overview(spec)
     design_plan = build_design_plan(spec)
@@ -283,6 +294,10 @@ def main() -> None:
 
     with tabs[8]:
         st.markdown("### 直接发布到 GitHub（无需手动网页点创建）")
+        st.markdown("#### 同步预检（专业版）")
+        st.success("预检通过，可执行同步。")
+        for warn in github_preflight["warnings"]:
+            st.caption(f"提示：{warn}")
         for idx, item in enumerate(github_publish_steps, start=1):
             st.markdown(f"{idx}. {item}")
         st.markdown("**Step A：先校验 Token**")

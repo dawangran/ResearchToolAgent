@@ -2,7 +2,50 @@
 
 from __future__ import annotations
 
+import re
+
 from core.schemas import ResearchSpec
+
+
+_OWNER_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
+_REPO_RE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
+_BRANCH_RE = re.compile(r"^(?!/)(?!.*//)[^\s~^:?*\[\]]+$")
+
+
+def build_github_preflight(spec: ResearchSpec) -> dict[str, object]:
+    """Validate GitHub sync fields before giving publish instructions."""
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    if not spec.github_sync:
+        return {"ready": True, "errors": [], "warnings": ["未开启 GitHub 同步，已跳过同步预检。"]}
+
+    owner = spec.github_owner.strip()
+    repo = spec.github_repo.strip()
+    branch = spec.github_default_branch.strip()
+
+    if not owner:
+        errors.append("缺少 GitHub Owner（用户名或组织名）。")
+    elif not _OWNER_RE.match(owner):
+        errors.append("GitHub Owner 格式不合法：仅允许字母、数字、短横线，且不能以短横线开头或结尾。")
+
+    if not repo:
+        errors.append("缺少 GitHub Repo（仓库名）。")
+    elif not _REPO_RE.match(repo):
+        errors.append("GitHub Repo 格式不合法：建议使用字母、数字、点、下划线、短横线。")
+
+    if not branch:
+        errors.append("缺少默认分支名（例如 main）。")
+    elif not _BRANCH_RE.match(branch):
+        errors.append("默认分支名格式不合法：不能包含空格及 Git 禁止字符。")
+
+    if spec.github_visibility not in {"public", "private"}:
+        warnings.append("仓库可见性异常，已回退为 public。")
+
+    if owner and repo:
+        warnings.append(f"目标仓库：{owner}/{repo}")
+
+    return {"ready": len(errors) == 0, "errors": errors, "warnings": warnings}
 
 
 def build_github_publish_steps(spec: ResearchSpec) -> list[str]:
