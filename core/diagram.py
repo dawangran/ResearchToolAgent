@@ -4,35 +4,33 @@ from __future__ import annotations
 
 
 def generate_mermaid_flow(task_type: str) -> str:
-    """Generate a cleaner Mermaid flowchart for planning workflow."""
+    """Generate a project implementation flowchart for the user's requested tool."""
     branch = "训练规划" if task_type == "深度学习模型工具" else "算法规划"
     return f"""flowchart LR
-    subgraph 输入层
-        A[用户需求文本]
-        B[表单参数]
+    subgraph 数据输入
+        A[多文件数据输入]
+        B[数据格式校验]
     end
 
-    subgraph 解析与路由
-        C[需求解析]
-        D[任务路由: {task_type}]
+    subgraph 数据处理与建模
+        C[预处理与特征工程]
+        D[{branch}]
+        E[模型训练与调参]
     end
 
-    subgraph 规划与生成
-        E[方案生成: {branch}]
-        F[项目骨架生成]
-        G[初始化文件生成]
+    subgraph 评估与解释
+        F[模型评估指标]
+        G[可解释性分析]
     end
 
-    subgraph 输出层
-        H[流程图与文档说明]
-        I[GitHub 协作动作]
-        J[创新点建议]
+    subgraph 交付输出
+        H[评估报告]
+        I[可视化图表]
+        J[模型与日志导出]
     end
 
-    A --> C
-    B --> C
-    C --> D --> E --> F --> G
-    E --> H
+    A --> B --> C --> D --> E --> F --> G
+    F --> H
     G --> I
     E --> J
 
@@ -49,7 +47,7 @@ def generate_mermaid_flow(task_type: str) -> str:
 def build_diagram_explanation(task_type: str) -> str:
     """Provide human-readable explanation for diagram."""
     return (
-        "新版流程图将链路拆成四层：输入、解析与路由、规划与生成、输出。"
-        f"其中路由节点会根据任务类型切到 **{task_type}** 分支，"
-        "从而影响后续方案模板与交付内容，便于团队快速定位每一步责任。"
+        "流程图聚焦你要开发的业务工具本身：从数据输入开始，经过预处理、建模、评估与解释，"
+        f"再输出报告与图表。中间会根据任务类型切到 **{task_type}** 的策略分支，"
+        "确保不是在解释平台内部实现，而是在描述你项目的落地流程。"
     )

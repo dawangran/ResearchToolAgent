@@ -8,19 +8,19 @@ from core.schemas import ResearchSpec
 def generate_innovation_points(spec: ResearchSpec) -> list[str]:
     """Generate concrete innovation points across multiple dimensions."""
     points = [
-        f"【方法创新】针对“{spec.problem_statement[:24]}...”构建任务模板化解析规则，降低科研需求到可执行方案的转换门槛。",
-        "【工程创新】采用 Pydantic 结构化规格，保证字段完整性与类型一致性，便于后续接入自动测试与配置驱动开发。",
-        f"【产品/交互创新】通过一次输入同步产出概览、设计方案、目录骨架和 Mermaid 图，减少跨文档沟通成本，提升需求评审效率。",
+        f"【方法创新】围绕“{spec.problem_statement[:24]}...”设计可复现的端到端 pipeline：数据读取→建模→评估→解释→交付。",
+        "【工程创新】将训练配置、随机种子与数据切分策略显式化，保证实验可复现与结果可追踪。",
+        f"【产品创新】交付物直接对齐业务目标（{spec.output_format}），减少‘模型有了但无法汇报/复盘’的问题。",
     ]
 
     if spec.task_type in {"序列分析工具", "信号处理工具", "深度学习模型工具"}:
         points.append(
-            "【领域应用创新】将科研常见输入格式识别（如 FASTQ/BAM/NPY）内置到解析流程，支持生信与算法研发场景的快速落地。"
+            "【领域应用创新】针对科研常见数据（如 FASTQ/BAM/NPY）提供统一的数据质控与特征处理策略，加速落地。"
         )
 
     if spec.needs_training:
         points.append(
-            "【方法+工程协同创新】在 MVP 阶段即预置训练与评估闭环建议，可直接衔接实验追踪和模型迭代流程。"
+            "【可解释训练创新】把模型可解释性纳入默认输出（特征重要性/SHAP），让性能提升与科学解释同步推进。"
         )
 
     return points[:5]

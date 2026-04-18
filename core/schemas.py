@@ -18,6 +18,10 @@ class ResearchSpec(BaseModel):
     needs_training: bool = False
     deployment_form: str
     github_sync: bool = False
+    github_owner: str = ""
+    github_repo: str = ""
+    github_visibility: str = "public"
+    github_default_branch: str = "main"
     deliverables: List[str]
 
 
