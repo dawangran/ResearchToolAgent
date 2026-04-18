@@ -30,7 +30,10 @@ def _provider_config(provider: str, overrides: ProviderOverrides | None = None) 
     if normalized == "qwen":
         return (
             runtime.get("api_key") or os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY", ""),
-            runtime.get("base_url") or os.getenv("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+            runtime.get("base_url")
+            or os.getenv("QWEN_BASE_URL")
+            or os.getenv("DASHSCOPE_BASE_URL")
+            or "https://dashscope.aliyuncs.com/compatible-mode/v1",
             runtime.get("model") or os.getenv("QWEN_MODEL", "qwen-plus"),
         )
     return (
@@ -94,6 +97,55 @@ def _extract_error_code(exc: Exception) -> str:
                     return nested_code.strip()
 
     return ""
+
+
+def _extract_error_message(exc: Exception) -> str:
+    """Extract provider error message from OpenAI-compatible exceptions."""
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        error_payload = body.get("error")
+        if isinstance(error_payload, dict):
+            message = error_payload.get("message")
+            if isinstance(message, str) and message.strip():
+                return message.strip()
+        message = body.get("message")
+        if isinstance(message, str) and message.strip():
+            return message.strip()
+
+    response = getattr(exc, "response", None)
+    if response is not None:
+        try:
+            payload: Any = response.json()
+        except Exception:  # noqa: BLE001
+            payload = None
+        if isinstance(payload, dict):
+            error_payload = payload.get("error")
+            if isinstance(error_payload, dict):
+                message = error_payload.get("message")
+                if isinstance(message, str) and message.strip():
+                    return message.strip()
+            message = payload.get("message")
+            if isinstance(message, str) and message.strip():
+                return message.strip()
+
+    fallback = str(exc).strip()
+    return fallback
+
+
+def _format_error_hint(exc: Exception, *, model: str, base_url: str | None) -> str:
+    """Build a concise diagnostic hint for runtime API failures."""
+    details: list[str] = []
+    code = _extract_error_code(exc)
+    message = _extract_error_message(exc)
+    if code:
+        details.append(f"错误码: {code}")
+    if message:
+        details.append(f"错误信息: {message}")
+    if model:
+        details.append(f"模型: {model}")
+    if base_url:
+        details.append(f"Base URL: {base_url}")
+    return "；".join(details)
 
 
 def _is_recoverable_openai_access_error(exc: Exception) -> bool:
@@ -173,8 +225,10 @@ def enhance_plan_with_ai(
             return _request_with_provider(chosen_provider)
         except Exception as exc:  # noqa: BLE001
             provider_name = chosen_provider.upper()
+            _, base_url, model = _provider_config(chosen_provider, overrides=overrides)
+            hint = _format_error_hint(exc, model=model, base_url=base_url)
             raise RuntimeError(
-                f"{provider_name} 请求失败，请检查 API Key、账户权限、模型名称或 Base URL 配置。"
+                f"{provider_name} 请求失败，请检查 API Key、账户权限、模型名称或 Base URL 配置。{hint}"
             ) from exc
 
     try:
